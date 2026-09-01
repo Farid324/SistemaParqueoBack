@@ -1,0 +1,44 @@
+name: Continuous Integration (CI)
+
+on:
+  push:
+    branches: [ main, dev, master ]
+  pull_request:
+    branches: [ main, dev, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js with pnpm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Linter (ESLint)
+        run: pnpm run lint
+
+      - name: Check Code Formatting (Prettier)
+        run: pnpm run format:check
+
+      - name: Generate Prisma Client
+        run: pnpm run prisma:generate
+
+      - name: Compile Application
+        run: pnpm run build
+
+      - name: Run Unit Tests
+        run: pnpm run test

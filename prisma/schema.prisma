@@ -1,0 +1,49 @@
+// Prisma Schema para SistemaParqueoBack
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role     @default(OPERATOR)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parkings  ParkingSlot[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+  CUSTOMER
+}
+
+model ParkingSlot {
+  id          String         @id @default(uuid())
+  slotNumber  String         @unique
+  isOccupied  Boolean        @default(false)
+  vehicleType VehicleType    @default(CAR)
+  userId      String?
+  user        User?          @relation(fields: [userId], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("parking_slots")
+}
+
+enum VehicleType {
+  CAR
+  MOTORCYCLE
+  TRUCK
+}
