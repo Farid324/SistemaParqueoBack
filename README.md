@@ -32,6 +32,7 @@
 ---
 
 ## 📋 Tabla de Contenidos
+- [Arquitectura General del Sistema](#-arquitectura-general-del-sistema)
 - [Funcionalidades Principales](#-funcionalidades-principales)
 - [Arquitectura del Proyecto (Modular Clean Architecture)](#-arquitectura-del-proyecto-modular-clean-architecture)
 - [Requisitos Previos](#-requisitos-previos)
@@ -40,6 +41,73 @@
 - [Ejecución con Docker](#-ejecución-con-docker)
 - [Documentación Interactiva Swagger UI](#-documentación-interactiva-swagger-ui)
 - [Calidad de Código y Pruebas](#-calidad-de-código-y-pruebas)
+
+---
+
+## 🌐 Arquitectura General del Sistema
+
+Este backend es el **núcleo central** del Sistema de Parqueos SaaS. Todas las aplicaciones cliente se conectan exclusivamente a este servidor a través de su API REST.
+
+### Diagrama de Conexión
+
+```text
+┌──────────────────────────┐
+│  SistemaParqueoFront     │        ┌──────────────────────────┐
+│  (Next.js — Panel Web)   │───────▶│                          │       ┌─────────────────┐
+│  Puerto: 3000            │        │  SistemaParqueoBack      │──────▶│  Supabase        │
+│                          │        │  (NestJS — API REST)     │       │  PostgreSQL      │
+│  Env: NEXT_PUBLIC_API_URL│        │  Puerto: 4000            │       │  (Base de Datos) │
+└──────────────────────────┘        │                          │       └─────────────────┘
+                                    │  Endpoints disponibles:  │
+┌──────────────────────────┐        │  GET  /api/health        │
+│  SistemaParqueoApp       │───────▶│  GET  /api/users         │
+│  (Expo — App Móvil)      │        │  POST /api/users         │
+│  Puerto: 8081 (dev only) │        │                          │
+│                          │        │  Swagger UI:             │
+│  Env: EXPO_PUBLIC_API_URL│        │  /api/docs               │
+└──────────────────────────┘        └──────────────────────────┘
+```
+
+### Puertos en Desarrollo Local
+
+Cada aplicación utiliza su propio puerto porque todas corren en la misma computadora:
+
+| Proyecto | Puerto | Descripción |
+|---|---|---|
+| **SistemaParqueoBack** (este proyecto) | `4000` | API REST — servidor central |
+| **SistemaParqueoFront** (Next.js) | `3000` | Panel web de administración |
+| **SistemaParqueoApp** (Expo) | `8081` | Dev server de la app móvil (automático de Expo) |
+
+> ⚠️ **Importante:** Los puertos del Frontend (`3000`) y la App Móvil (`8081`) son los puertos de sus propios dev servers. Ambos **apuntan al puerto `4000`** de este backend para consumir datos.
+
+### Estrategia de Variables de Entorno (Desarrollo → Producción)
+
+La conexión al backend se maneja mediante **una sola variable de entorno** en cada proyecto cliente. Esto permite cambiar de desarrollo local a producción **sin modificar ningún archivo de código**:
+
+| Proyecto | Variable de Entorno | Valor en Desarrollo | Valor en Producción |
+|---|---|---|---|
+| **Frontend** | `NEXT_PUBLIC_API_URL` | `http://localhost:4000` | `https://tu-backend.render.com` |
+| **App Móvil** | `EXPO_PUBLIC_API_URL` | `http://192.168.1.X:4000` | `https://tu-backend.render.com` |
+
+**¿Cómo funciona?**
+1. Todo el código de los clientes importa un **cliente API centralizado** (un solo archivo).
+2. Ese archivo lee la URL del `.env` una sola vez.
+3. Todas las llamadas HTTP pasan por ese cliente.
+4. Para producción: solo cambias **1 valor** en el `.env` (o en el dashboard de Vercel/EAS) y todo se actualiza automáticamente.
+
+> 🚫 **Nunca** se escribe `localhost` directamente en los componentes o pantallas. Siempre se usa la variable de entorno.
+
+### Conexión con la Base de Datos
+
+Este backend se conecta a **PostgreSQL** (Supabase) mediante **Prisma ORM**. La conexión se configura en el `.env` de este proyecto:
+
+```env
+# Conexión por pooler (para la app en ejecución)
+DATABASE_URL="postgresql://...@pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# Conexión directa (para migraciones de Prisma)
+DIRECT_URL="postgresql://...@pooler.supabase.com:5432/postgres"
+```
 
 ---
 
@@ -128,7 +196,7 @@ Crea un archivo `.env` en la raíz del proyecto basándote en la plantilla `.env
 
 ```env
 # App Environment
-PORT=3000
+PORT=4000
 NODE_ENV=development
 
 # Prisma Database URL (PostgreSQL local o en Docker)
@@ -192,7 +260,7 @@ pnpm run docker:down
 
 Una vez iniciado el servidor, accede a la documentación interactiva de la API OpenAPI / Swagger en tu navegador:
 
-🔗 **[http://localhost:3000/api/docs](http://localhost:3000/api/docs)**
+🔗 **[http://localhost:4000/api/docs](http://localhost:4000/api/docs)**
 
 ---
 
