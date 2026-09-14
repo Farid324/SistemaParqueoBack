@@ -1,5 +1,5 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Rol } from '@prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/persistence/prisma/prisma.service';
 import { IHashingService } from '../../../../shared/domain/services/hashing.service.interface';
 import { IEmailService } from '../../../../shared/domain/services/email.service.interface';
@@ -19,35 +19,39 @@ export class RegisterCustomerUseCase {
   ) {}
 
   async execute(dto: RegisterCustomerDto): Promise<AuthTokens> {
-    const existingUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (existingUser) {
+    const existingUsuario = await this.prisma.usuario.findUnique({ where: { email: dto.email } });
+    if (existingUsuario) {
       throw new ConflictException('El correo ya está registrado.');
     }
 
     const hashedPassword = await this.hashingService.hash(dto.password);
 
-    const user = await this.prisma.user.create({
+    const usuario = await this.prisma.usuario.create({
       data: {
         email: dto.email,
-        name: dto.name,
+        nombre: dto.name,
         password: hashedPassword,
-        phone: dto.phone,
-        role: Role.CUSTOMER,
+        telefono: dto.phone,
+        rol: Rol.CLIENTE,
       },
     });
 
     await this.emailService.sendEmail({
-      to: user.email,
+      to: usuario.email,
       subject: '¡Bienvenido a Sistema Parqueo SaaS!',
       template: 'welcome',
-      context: { name: user.name, appName: 'Sistema Parqueo SaaS', year: new Date().getFullYear() },
+      context: {
+        name: usuario.nombre,
+        appName: 'Sistema Parqueo SaaS',
+        year: new Date().getFullYear(),
+      },
     });
 
     return this.tokenService.issueTokens({
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      organizationId: user.organizationId,
+      id: usuario.id,
+      email: usuario.email,
+      role: usuario.rol,
+      organizationId: usuario.organizacionId,
     });
   }
 }

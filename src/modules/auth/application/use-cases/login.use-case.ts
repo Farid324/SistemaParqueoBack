@@ -17,21 +17,21 @@ export class LoginUseCase {
   ) {}
 
   async execute(dto: LoginDto): Promise<AuthTokens> {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (!user || !user.isActive) {
+    const usuario = await this.prisma.usuario.findUnique({ where: { email: dto.email } });
+    if (!usuario || !usuario.activo) {
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
-    const passwordMatches = await this.hashingService.compare(dto.password, user.password);
+    const passwordMatches = await this.hashingService.compare(dto.password, usuario.password);
     if (!passwordMatches) {
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
     return this.tokenService.issueTokens({
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      organizationId: user.organizationId,
+      id: usuario.id,
+      email: usuario.email,
+      role: usuario.rol,
+      organizationId: usuario.organizacionId,
     });
   }
 }

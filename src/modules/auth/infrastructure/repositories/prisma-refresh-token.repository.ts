@@ -10,30 +10,40 @@ export class PrismaRefreshTokenRepository implements IRefreshTokenRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: { userId: string; tokenHash: string; expiresAt: Date }): Promise<void> {
-    await this.prisma.refreshToken.create({
+    await this.prisma.tokenRenovacion.create({
       data: {
-        userId: data.userId,
+        usuarioId: data.userId,
         tokenHash: data.tokenHash,
-        expiresAt: data.expiresAt,
+        expiraEn: data.expiresAt,
       },
     });
   }
 
   async findByTokenHash(tokenHash: string): Promise<StoredRefreshToken | null> {
-    return this.prisma.refreshToken.findUnique({ where: { tokenHash } });
+    const token = await this.prisma.tokenRenovacion.findUnique({ where: { tokenHash } });
+    if (!token) {
+      return null;
+    }
+    return {
+      id: token.id,
+      tokenHash: token.tokenHash,
+      userId: token.usuarioId,
+      expiresAt: token.expiraEn,
+      revokedAt: token.revocadoEn,
+    };
   }
 
   async revoke(id: string): Promise<void> {
-    await this.prisma.refreshToken.update({
+    await this.prisma.tokenRenovacion.update({
       where: { id },
-      data: { revokedAt: new Date() },
+      data: { revocadoEn: new Date() },
     });
   }
 
   async revokeAllForUser(userId: string): Promise<void> {
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
+    await this.prisma.tokenRenovacion.updateMany({
+      where: { usuarioId: userId, revocadoEn: null },
+      data: { revocadoEn: new Date() },
     });
   }
 }

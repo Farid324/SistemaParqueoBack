@@ -3,13 +3,20 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { StringValue } from 'ms';
 import { randomUUID } from 'crypto';
-import { UserEntity } from '../../../users/domain/entities/user.entity';
+import { Rol } from '@prisma/client';
 import { AuthTokens } from '../../domain/value-objects/auth-tokens.value-object';
 import { IRefreshTokenRepository } from '../../domain/repositories/refresh-token.repository.interface';
 import { hashToken } from '../../infrastructure/security/token-hash.util';
 import { JwtPayload } from '../../infrastructure/strategies/jwt.strategy';
 
 const REFRESH_TOKEN_DAYS_FALLBACK = 30;
+
+interface TokenSubject {
+  id: string;
+  email: string;
+  role: Rol;
+  organizationId?: string | null;
+}
 
 @Injectable()
 export class TokenService {
@@ -20,9 +27,7 @@ export class TokenService {
     private readonly refreshTokenRepository: IRefreshTokenRepository,
   ) {}
 
-  private buildPayload(
-    user: Pick<UserEntity, 'id' | 'email' | 'role'> & { organizationId?: string | null },
-  ): JwtPayload {
+  private buildPayload(user: TokenSubject): JwtPayload {
     return {
       sub: user.id,
       email: user.email,
@@ -31,9 +36,7 @@ export class TokenService {
     };
   }
 
-  async issueTokens(
-    user: Pick<UserEntity, 'id' | 'email' | 'role'> & { organizationId?: string | null },
-  ): Promise<AuthTokens> {
+  async issueTokens(user: TokenSubject): Promise<AuthTokens> {
     const payload = this.buildPayload(user);
 
     const accessToken = this.jwtService.sign(payload, {
@@ -55,11 +58,7 @@ export class TokenService {
 
   async rotateRefreshToken(
     rawRefreshToken: string,
-    userLookup: (
-      userId: string,
-    ) => Promise<
-      (Pick<UserEntity, 'id' | 'email' | 'role'> & { organizationId?: string | null }) | null
-    >,
+    userLookup: (userId: string) => Promise<TokenSubject | null>,
   ): Promise<AuthTokens> {
     const tokenHash = hashToken(rawRefreshToken);
     const stored = await this.refreshTokenRepository.findByTokenHash(tokenHash);

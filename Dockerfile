@@ -3,11 +3,11 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Enable pnpm via corepack
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Enable pnpm via corepack (versión fijada en package.json#packageManager)
+RUN corepack enable && corepack prepare pnpm@10.2.0 --activate
 
 # Copy package files and prisma schema
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml prisma.config.ts ./
 COPY prisma ./prisma/
 
 # Install all dependencies (including devDependencies)
@@ -23,11 +23,11 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.2.0 --activate
 
 ENV NODE_ENV=production
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml prisma.config.ts ./
 COPY prisma ./prisma/
 
 # Install only production dependencies

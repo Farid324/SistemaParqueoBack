@@ -75,24 +75,24 @@ SistemaParqueoBack/
 │   │   │   ├── presentation/      # AuthController y AuthDto
 │   │   │   └── auth.module.ts
 │   │   │
-│   │   ├── parking-map/           # Módulo de Mapa de Parqueos
+│   │   ├── mapa-parqueo/           # Módulo de Mapa de Parqueos
 │   │   │   ├── domain/            # Entidades de Zonas y Slots
 │   │   │   ├── application/       # Casos de uso del mapa
 │   │   │   ├── infrastructure/    # Gateways de WebSockets y Repositorios
-│   │   │   ├── presentation/      # ParkingMapController y DTOs
-│   │   │   └── parking-map.module.ts
+│   │   │   ├── presentation/      # MapaParqueoController y DTOs
+│   │   │   └── mapa-parqueo.module.ts
 │   │   │
-│   │   ├── users/                 # Módulo de Usuarios
-│   │   │   ├── domain/            # UserEntity, IUserRepository
-│   │   │   ├── application/       # CreateUserUseCase, GetUsersUseCase
-│   │   │   ├── infrastructure/    # PrismaUserRepository, UserMapper
-│   │   │   ├── presentation/      # UserController, CreateUserDto
-│   │   │   └── users.module.ts
+│   │   ├── usuarios/               # Módulo de Usuarios
+│   │   │   ├── domain/            # UsuarioEntity, IUsuarioRepository
+│   │   │   ├── application/       # CrearUsuarioUseCase, ObtenerUsuariosUseCase
+│   │   │   ├── infrastructure/    # PrismaUsuarioRepository, UsuarioMapper
+│   │   │   ├── presentation/      # UsuarioController, CrearUsuarioDto
+│   │   │   └── usuarios.module.ts
 │   │   │
-│   │   └── health/                # Módulo de comprobación de salud del sistema
-│   │       ├── application/       # GetHealthUseCase
-│   │       ├── presentation/      # HealthController
-│   │       └── health.module.ts
+│   │   └── salud/                 # Módulo de comprobación de salud del sistema
+│   │       ├── application/       # ObtenerSaludUseCase
+│   │       ├── presentation/      # SaludController
+│   │       └── salud.module.ts
 │   │
 │   ├── shared/                    # 🤝 RECURSOS COMPARTIDOS (TRANSVERSALES)
 │   │   ├── domain/                # Interfaces compartidas (IEmailService)

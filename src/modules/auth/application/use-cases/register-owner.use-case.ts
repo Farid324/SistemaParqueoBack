@@ -5,7 +5,7 @@ import { IEmailService } from '../../../../shared/domain/services/email.service.
 import { RegisterOwnerDto } from '../../presentation/dtos/register-owner.dto';
 import { TokenService } from '../services/token.service';
 import { AuthTokens } from '../../domain/value-objects/auth-tokens.value-object';
-import { Role } from '@prisma/client';
+import { Rol, EstadoSuscripcion } from '@prisma/client';
 
 const TRIAL_DAYS = 14;
 const DEFAULT_MAX_PARKING_LOTS = 1;
@@ -34,72 +34,76 @@ export class RegisterOwnerUseCase {
   ) {}
 
   async execute(dto: RegisterOwnerDto): Promise<AuthTokens> {
-    const existingUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (existingUser) {
+    const existingUsuario = await this.prisma.usuario.findUnique({ where: { email: dto.email } });
+    if (existingUsuario) {
       throw new ConflictException('El correo ya está registrado.');
     }
 
     const baseSlug = slugify(dto.organizationName);
     let slug = baseSlug;
     let attempt = 1;
-    while (await this.prisma.organization.findUnique({ where: { slug } })) {
+    while (await this.prisma.organizacion.findUnique({ where: { slug } })) {
       slug = `${baseSlug}-${attempt}`;
       attempt += 1;
     }
 
     const hashedPassword = await this.hashingService.hash(dto.password);
 
-    const trialPlan = await this.prisma.plan.upsert({
-      where: { name: 'Free Trial' },
+    const planPrueba = await this.prisma.plan.upsert({
+      where: { nombre: 'Free Trial' },
       update: {},
       create: {
-        name: 'Free Trial',
-        description: 'Plan de prueba gratuito por 14 días',
-        priceCents: 0,
-        maxParkingLots: DEFAULT_MAX_PARKING_LOTS,
-        maxSpotsPerLot: DEFAULT_MAX_SPOTS_PER_LOT,
+        nombre: 'Free Trial',
+        descripcion: 'Plan de prueba gratuito por 14 días',
+        precioCentavos: 0,
+        maxParqueaderos: DEFAULT_MAX_PARKING_LOTS,
+        maxEspaciosPorParqueadero: DEFAULT_MAX_SPOTS_PER_LOT,
       },
     });
 
-    const { user, organizationId } = await this.prisma.$transaction(async (tx) => {
-      const organization = await tx.organization.create({
-        data: { name: dto.organizationName, slug },
+    const { usuario, organizacionId } = await this.prisma.$transaction(async (tx) => {
+      const organizacion = await tx.organizacion.create({
+        data: { nombre: dto.organizationName, slug },
       });
 
-      await tx.subscription.create({
+      await tx.suscripcion.create({
         data: {
-          organizationId: organization.id,
-          planId: trialPlan.id,
-          status: 'TRIALING',
-          currentPeriodEnd: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
+          organizacionId: organizacion.id,
+          planId: planPrueba.id,
+          estado: EstadoSuscripcion.PRUEBA,
+          finPeriodoActual: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
         },
       });
 
-      const createdUser = await tx.user.create({
+      const usuarioCreado = await tx.usuario.create({
         data: {
           email: dto.email,
-          name: dto.name,
+          nombre: dto.name,
           password: hashedPassword,
-          role: Role.OWNER,
-          organizationId: organization.id,
+          rol: Rol.PROPIETARIO,
+          organizacionId: organizacion.id,
         },
       });
 
-      return { user: createdUser, organizationId: organization.id };
+      return { usuario: usuarioCreado, organizacionId: organizacion.id };
     });
 
     await this.emailService.sendEmail({
-      to: user.email,
+      to: usuario.email,
       subject: '¡Bienvenido a Sistema Parqueo SaaS!',
       template: 'welcome',
-      context: { name: user.name, appName: 'Sistema Parqueo SaaS', year: new Date().getFullYear() },
+      context: {
+        name: usuario.nombre,
+        appName: 'Sistema Parqueo SaaS',
+        year: new Date().getFullYear(),
+      },
     });
 
     return this.tokenService.issueTokens({
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      organizationId,
+      id: usuario.id,
+      email: usuario.email,
+      role: usuario.rol,
+      organizationId: organizacionId,
     });
   }
 }

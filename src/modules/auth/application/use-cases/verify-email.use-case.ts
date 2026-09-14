@@ -12,15 +12,15 @@ export class VerifyEmailUseCase {
   async execute(token: string): Promise<void> {
     const userId = this.tokenService.verifyEmailVerificationToken(token);
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
+    const usuario = await this.prisma.usuario.findUnique({ where: { id: userId } });
+    if (!usuario) {
       throw new NotFoundException('El usuario no existe.');
     }
 
-    if (!user.emailVerifiedAt) {
-      await this.prisma.user.update({
+    if (!usuario.emailVerificadoEn) {
+      await this.prisma.usuario.update({
         where: { id: userId },
-        data: { emailVerifiedAt: new Date() },
+        data: { emailVerificadoEn: new Date() },
       });
     }
   }

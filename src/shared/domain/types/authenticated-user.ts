@@ -1,8 +1,8 @@
-import { Role } from '@prisma/client';
+import { Rol } from '@prisma/client';
 
 export interface AuthenticatedUser {
   userId: string;
   email: string;
-  role: Role;
+  role: Rol;
   organizationId: string | null;
 }

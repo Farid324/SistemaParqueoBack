@@ -1,9 +1,9 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Rol, EstadoSuscripcion } from '@prisma/client';
 import { AuthenticatedUser } from '../../../../shared/domain/types/authenticated-user';
 import { PrismaService } from '../../../../shared/infrastructure/persistence/prisma/prisma.service';
 
-const ACTIVE_STATUSES = ['TRIALING', 'ACTIVE'];
+const ESTADOS_ACTIVOS: EstadoSuscripcion[] = [EstadoSuscripcion.PRUEBA, EstadoSuscripcion.ACTIVA];
 
 @Injectable()
 export class SubscriptionGuard implements CanActivate {
@@ -13,7 +13,7 @@ export class SubscriptionGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<{ user: AuthenticatedUser }>();
     const user = request.user;
 
-    if (!user || user.role === Role.SUPER_ADMIN || user.role === Role.CUSTOMER) {
+    if (!user || user.role === Rol.SUPER_ADMIN || user.role === Rol.CLIENTE) {
       return true;
     }
 
@@ -21,11 +21,11 @@ export class SubscriptionGuard implements CanActivate {
       throw new ForbiddenException('El usuario no pertenece a ninguna organización.');
     }
 
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { organizationId: user.organizationId },
+    const suscripcion = await this.prisma.suscripcion.findUnique({
+      where: { organizacionId: user.organizationId },
     });
 
-    if (!subscription || !ACTIVE_STATUSES.includes(subscription.status)) {
+    if (!suscripcion || !ESTADOS_ACTIVOS.includes(suscripcion.estado)) {
       throw new ForbiddenException(
         'La suscripción de tu organización no está activa. Contacta a soporte.',
       );
