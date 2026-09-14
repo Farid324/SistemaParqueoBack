@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailerModule } from '@nestjs-modules/mailer';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
 import { join } from 'path';
 import { IEmailService } from '../../domain/services/email.service.interface';
 import { NodemailerEmailService } from './nodemailer-email.service';
@@ -9,18 +10,20 @@ import { NodemailerEmailService } from './nodemailer-email.service';
 @Module({
   imports: [
     MailerModule.forRootAsync({
-      useFactory: () => ({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
         transport: {
-          host: process.env.MAIL_HOST || 'smtp.gmail.com',
-          port: Number(process.env.MAIL_PORT) || 587,
+          host: config.get<string>('MAIL_HOST', 'smtp.gmail.com'),
+          port: config.get<number>('MAIL_PORT', 587),
           secure: false, // TLS
           auth: {
-            user: process.env.MAIL_USER,
-            pass: process.env.MAIL_PASSWORD,
+            user: config.get<string>('MAIL_USER'),
+            pass: config.get<string>('MAIL_PASSWORD'),
           },
         },
         defaults: {
-          from: process.env.MAIL_FROM || '"Sistema Parqueo SaaS" <noreply@parqueo.com>',
+          from: config.get<string>('MAIL_FROM', '"Sistema Parqueo SaaS" <noreply@parqueo.com>'),
         },
         template: {
           dir: join(__dirname, 'templates'),

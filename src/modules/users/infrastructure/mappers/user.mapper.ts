@@ -8,9 +8,13 @@ export class UserMapper {
       prismaUser.email,
       prismaUser.name,
       prismaUser.role as Role,
+      prismaUser.password,
+      prismaUser.organizationId,
+      prismaUser.phone,
+      prismaUser.isActive,
+      prismaUser.emailVerifiedAt,
       prismaUser.createdAt,
       prismaUser.updatedAt,
-      prismaUser.password,
     );
   }
 

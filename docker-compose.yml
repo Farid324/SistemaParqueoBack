@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -25,17 +23,20 @@ services:
       dockerfile: Dockerfile
     container_name: sistema_parqueo_api
     restart: always
+    env_file:
+      - .env
     environment:
       PORT: 3000
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sistemaparqueodb}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sistemaparqueodb}?schema=public
     ports:
       - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
     command: >
-      sh -c "npx prisma migrate deploy && node dist/src/main.js"
+      sh -c "npx prisma migrate deploy && node dist/main.js"
 
 volumes:
   postgres_data:

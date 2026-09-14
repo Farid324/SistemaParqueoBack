@@ -2,8 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { Role } from '../../domain/entities/user.entity';
 
+const ASSIGNABLE_ROLES = [Role.OPERATOR, Role.CUSTOMER] as const;
+
 export class CreateUserDto {
-  @ApiProperty({ example: 'admin@parqueo.com', description: 'Correo electrónico del usuario' })
+  @ApiProperty({ example: 'operador@parqueo.com', description: 'Correo electrónico del usuario' })
   @IsEmail()
   @IsNotEmpty()
   email!: string;
@@ -13,13 +15,17 @@ export class CreateUserDto {
   @IsNotEmpty()
   name!: string;
 
-  @ApiProperty({ example: 'Pass1234!', description: 'Contraseña del usuario', minLength: 6 })
+  @ApiProperty({ example: 'Pass1234!', description: 'Contraseña del usuario', minLength: 8 })
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
   password!: string;
 
-  @ApiProperty({ enum: Role, default: Role.OPERATOR, description: 'Rol asignado al usuario' })
-  @IsEnum(Role)
+  @ApiProperty({
+    enum: ASSIGNABLE_ROLES,
+    default: Role.OPERATOR,
+    description: 'Rol asignado al usuario dentro de la organización (OPERATOR o CUSTOMER)',
+  })
+  @IsEnum(ASSIGNABLE_ROLES)
   @IsOptional()
   role?: Role;
 }

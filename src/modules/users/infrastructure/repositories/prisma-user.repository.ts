@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { IUserRepository } from '../../domain/repositories/user.repository.interface';
-import { UserEntity } from '../../domain/entities/user.entity';
+import {
+  CreateUserData,
+  IUserRepository,
+} from '../../domain/repositories/user.repository.interface';
+import { UserEntity, Role } from '../../domain/entities/user.entity';
 import { PrismaService } from '../../../../shared/infrastructure/persistence/prisma/prisma.service';
 import { UserMapper } from '../mappers/user.mapper';
 
@@ -18,18 +21,24 @@ export class PrismaUserRepository implements IUserRepository {
     return user ? UserMapper.toDomain(user) : null;
   }
 
-  async findAll(): Promise<UserEntity[]> {
-    const users = await this.prisma.user.findMany();
+  async findAll(organizationId?: string): Promise<UserEntity[]> {
+    const users = await this.prisma.user.findMany({
+      where: organizationId ? { organizationId } : undefined,
+    });
     return users.map(UserMapper.toDomain);
   }
 
-  async create(userData: Partial<UserEntity>): Promise<UserEntity> {
+  async create(data: CreateUserData): Promise<UserEntity> {
     const created = await this.prisma.user.create({
       data: {
-        email: userData.email!,
-        name: userData.name!,
-        password: userData.password || 'default_hashed_password',
-        role: userData.role ? UserMapper.toPrismaRole(userData.role) : 'OPERATOR',
+        email: data.email,
+        name: data.name,
+        password: data.password,
+        role: data.role
+          ? UserMapper.toPrismaRole(data.role)
+          : UserMapper.toPrismaRole(Role.CUSTOMER),
+        organizationId: data.organizationId ?? undefined,
+        phone: data.phone ?? undefined,
       },
     });
     return UserMapper.toDomain(created);
