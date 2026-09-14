@@ -1,4 +1,5 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../../shared/infrastructure/persistence/prisma/prisma.service';
 import { IHashingService } from '../../../../shared/domain/services/hashing.service.interface';
 import { IEmailService } from '../../../../shared/domain/services/email.service.interface';
@@ -31,6 +32,7 @@ export class RegisterOwnerUseCase {
     @Inject(IEmailService)
     private readonly emailService: IEmailService,
     private readonly tokenService: TokenService,
+    private readonly config: ConfigService,
   ) {}
 
   async execute(dto: RegisterOwnerDto): Promise<AuthTokens> {
@@ -62,9 +64,14 @@ export class RegisterOwnerUseCase {
     });
 
     const { usuario, organizacionId } = await this.prisma.$transaction(async (tx) => {
-      const organizacion = await tx.organizacion.create({
-        data: { nombre: dto.organizationName, slug },
-      });
+      let organizacion;
+      try {
+        organizacion = await tx.organizacion.create({
+          data: { nombre: dto.organizationName, slug },
+        });
+      } catch {
+        throw new ConflictException('Ese nombre de organización ya está en uso, intenta de nuevo.');
+      }
 
       await tx.suscripcion.create({
         data: {
@@ -88,6 +95,9 @@ export class RegisterOwnerUseCase {
       return { usuario: usuarioCreado, organizacionId: organizacion.id };
     });
 
+    const verificationToken = this.tokenService.generateEmailVerificationToken(usuario.id);
+    const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
+
     await this.emailService.sendEmail({
       to: usuario.email,
       subject: '¡Bienvenido a Sistema Parqueo SaaS!',
@@ -96,6 +106,7 @@ export class RegisterOwnerUseCase {
         name: usuario.nombre,
         appName: 'Sistema Parqueo SaaS',
         year: new Date().getFullYear(),
+        verificationUrl: `${frontendUrl}/verificar-email?token=${verificationToken}`,
       },
     });
 

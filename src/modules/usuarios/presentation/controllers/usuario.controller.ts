@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Rol } from '@prisma/client';
 import { CrearUsuarioUseCase } from '../../application/use-cases/crear-usuario.use-case';
@@ -8,9 +8,11 @@ import { UsuarioResponseDto } from '../dtos/usuario-response.dto';
 import { Roles } from '../../../../shared/infrastructure/http/decorators/roles.decorator';
 import { CurrentUser } from '../../../../shared/infrastructure/http/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../../../shared/domain/types/authenticated-user';
+import { SubscriptionGuard } from '../../../auth/infrastructure/guards/subscription.guard';
 
 @ApiTags('Usuarios')
 @ApiBearerAuth()
+@UseGuards(SubscriptionGuard)
 @Controller('usuarios')
 export class UsuarioController {
   constructor(

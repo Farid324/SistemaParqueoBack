@@ -34,7 +34,7 @@ export class PrismaUsuarioRepository implements IUsuarioRepository {
         email: data.email,
         nombre: data.nombre,
         password: data.password,
-        rol: data.rol ?? Rol.CLIENTE,
+        rol: data.rol ?? Rol.OPERADOR,
         organizacionId: data.organizacionId ?? undefined,
         telefono: data.telefono ?? undefined,
       },

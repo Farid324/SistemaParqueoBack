@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common';
 import { IUsuarioRepository } from '../../domain/repositories/usuario.repository.interface';
 import { UsuarioEntity } from '../../domain/entities/usuario.entity';
 import { CrearUsuarioDto } from '../../presentation/dtos/crear-usuario.dto';
@@ -15,6 +15,12 @@ export class CrearUsuarioUseCase {
   ) {}
 
   async execute(dto: CrearUsuarioDto, creator: AuthenticatedUser): Promise<UsuarioEntity> {
+    if (!creator.organizationId) {
+      throw new BadRequestException(
+        'No se puede crear un usuario sin una organización asociada al solicitante.',
+      );
+    }
+
     const existing = await this.usuarioRepository.findByEmail(dto.email);
     if (existing) {
       throw new ConflictException('El correo ya está registrado.');

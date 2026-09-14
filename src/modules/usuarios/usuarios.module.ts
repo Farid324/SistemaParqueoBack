@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
 import { UsuarioController } from './presentation/controllers/usuario.controller';
 import { CrearUsuarioUseCase } from './application/use-cases/crear-usuario.use-case';
 import { ObtenerUsuariosUseCase } from './application/use-cases/obtener-usuarios.use-case';
@@ -6,6 +7,7 @@ import { IUsuarioRepository } from './domain/repositories/usuario.repository.int
 import { PrismaUsuarioRepository } from './infrastructure/repositories/prisma-usuario.repository';
 
 @Module({
+  imports: [AuthModule],
   controllers: [UsuarioController],
   providers: [
     CrearUsuarioUseCase,

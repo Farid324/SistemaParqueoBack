@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { IUsuarioRepository } from '../../domain/repositories/usuario.repository.interface';
 import { UsuarioEntity, Rol } from '../../domain/entities/usuario.entity';
 import { AuthenticatedUser } from '../../../../shared/domain/types/authenticated-user';
@@ -15,6 +15,10 @@ export class ObtenerUsuariosUseCase {
       return this.usuarioRepository.findAll();
     }
 
-    return this.usuarioRepository.findAll(requester.organizationId ?? undefined);
+    if (!requester.organizationId) {
+      throw new ForbiddenException('El usuario no pertenece a ninguna organización.');
+    }
+
+    return this.usuarioRepository.findAll(requester.organizationId);
   }
 }

@@ -1,4 +1,5 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Rol } from '@prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/persistence/prisma/prisma.service';
 import { IHashingService } from '../../../../shared/domain/services/hashing.service.interface';
@@ -16,6 +17,7 @@ export class RegisterCustomerUseCase {
     @Inject(IEmailService)
     private readonly emailService: IEmailService,
     private readonly tokenService: TokenService,
+    private readonly config: ConfigService,
   ) {}
 
   async execute(dto: RegisterCustomerDto): Promise<AuthTokens> {
@@ -36,6 +38,9 @@ export class RegisterCustomerUseCase {
       },
     });
 
+    const verificationToken = this.tokenService.generateEmailVerificationToken(usuario.id);
+    const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
+
     await this.emailService.sendEmail({
       to: usuario.email,
       subject: '¡Bienvenido a Sistema Parqueo SaaS!',
@@ -44,6 +49,7 @@ export class RegisterCustomerUseCase {
         name: usuario.nombre,
         appName: 'Sistema Parqueo SaaS',
         year: new Date().getFullYear(),
+        verificationUrl: `${frontendUrl}/verificar-email?token=${verificationToken}`,
       },
     });
 

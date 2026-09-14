@@ -37,6 +37,6 @@ RUN pnpm run prisma:generate
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 
-EXPOSE 3000
+EXPOSE 4000
 
 CMD ["node", "dist/main.js"]

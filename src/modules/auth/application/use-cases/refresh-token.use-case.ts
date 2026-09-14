@@ -14,7 +14,7 @@ export class RefreshTokenUseCase {
   async execute(dto: RefreshTokenDto): Promise<AuthTokens> {
     return this.tokenService.rotateRefreshToken(dto.refreshToken, async (userId) => {
       const usuario = await this.prisma.usuario.findUnique({ where: { id: userId } });
-      if (!usuario) {
+      if (!usuario || !usuario.activo) {
         return null;
       }
       return {

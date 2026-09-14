@@ -25,7 +25,9 @@ export class SubscriptionGuard implements CanActivate {
       where: { organizacionId: user.organizationId },
     });
 
-    if (!suscripcion || !ESTADOS_ACTIVOS.includes(suscripcion.estado)) {
+    const vencida = suscripcion ? suscripcion.finPeriodoActual.getTime() < Date.now() : true;
+
+    if (!suscripcion || vencida || !ESTADOS_ACTIVOS.includes(suscripcion.estado)) {
       throw new ForbiddenException(
         'La suscripción de tu organización no está activa. Contacta a soporte.',
       );
