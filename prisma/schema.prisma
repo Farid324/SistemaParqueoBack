@@ -6,44 +6,238 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String
-  password  String
-  role      Role     @default(OPERATOR)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ==========================================
+// TENANT: dueños de parqueo y su suscripción
+// ==========================================
 
-  parkings  ParkingSlot[]
-
-  @@map("users")
+enum EstadoOrganizacion {
+  ACTIVA
+  SUSPENDIDA
 }
 
-enum Role {
-  ADMIN
-  OPERATOR
-  CUSTOMER
+model Organizacion {
+  id            String             @id @default(uuid())
+  nombre        String
+  slug          String             @unique
+  nit           String?
+  estado        EstadoOrganizacion @default(ACTIVA)
+  creadoEn      DateTime           @default(now())
+  actualizadoEn DateTime           @updatedAt
+
+  usuarios     Usuario[]
+  parqueaderos Parqueadero[]
+  suscripcion  Suscripcion?
+
+  @@map("organizaciones")
 }
 
-model ParkingSlot {
-  id          String         @id @default(uuid())
-  slotNumber  String         @unique
-  isOccupied  Boolean        @default(false)
-  vehicleType VehicleType    @default(CAR)
-  userId      String?
-  user        User?          @relation(fields: [userId], references: [id])
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
-  @@map("parking_slots")
+enum EstadoSuscripcion {
+  PRUEBA
+  ACTIVA
+  VENCIDA
+  CANCELADA
 }
 
-enum VehicleType {
-  CAR
-  MOTORCYCLE
-  TRUCK
+model Plan {
+  id                        String   @id @default(uuid())
+  nombre                    String   @unique
+  descripcion               String?
+  precioCentavos            Int
+  moneda                    String   @default("USD")
+  maxParqueaderos           Int
+  maxEspaciosPorParqueadero Int
+  creadoEn                  DateTime @default(now())
+  actualizadoEn             DateTime @updatedAt
+
+  suscripciones Suscripcion[]
+
+  @@map("planes")
+}
+
+model Suscripcion {
+  id                   String            @id @default(uuid())
+  organizacionId       String            @unique
+  organizacion         Organizacion      @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  planId               String
+  plan                 Plan              @relation(fields: [planId], references: [id])
+  estado               EstadoSuscripcion @default(PRUEBA)
+  finPeriodoActual     DateTime
+  clienteExternoId     String?
+  suscripcionExternaId String?
+  creadoEn             DateTime          @default(now())
+  actualizadoEn        DateTime          @updatedAt
+
+  @@map("suscripciones")
+}
+
+// ==========================================
+// USUARIOS (staff de organización + clientes finales)
+// ==========================================
+
+enum Rol {
+  SUPER_ADMIN
+  PROPIETARIO
+  OPERADOR
+  CLIENTE
+}
+
+model Usuario {
+  id                String        @id @default(uuid())
+  email             String        @unique
+  nombre            String
+  password          String
+  telefono          String?
+  rol               Rol           @default(CLIENTE)
+  activo            Boolean       @default(true)
+  emailVerificadoEn DateTime?
+  organizacionId    String?
+  organizacion      Organizacion? @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  creadoEn          DateTime      @default(now())
+  actualizadoEn     DateTime      @updatedAt
+
+  tokensRenovacion TokenRenovacion[]
+  vehiculos        Vehiculo[]
+  reservas         Reserva[]
+
+  @@map("usuarios")
+}
+
+model TokenRenovacion {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique
+  usuarioId  String
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  expiraEn   DateTime
+  revocadoEn DateTime?
+  creadoEn   DateTime  @default(now())
+
+  @@index([usuarioId])
+  @@map("tokens_renovacion")
+}
+
+// ==========================================
+// PARQUEOS (lado dueño)
+// ==========================================
+
+enum EstadoParqueadero {
+  ACTIVO
+  INACTIVO
+}
+
+model Parqueadero {
+  id                    String            @id @default(uuid())
+  organizacionId        String
+  organizacion          Organizacion      @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  nombre                String
+  direccion             String
+  latitud               Float
+  longitud              Float
+  precioPorHoraCentavos Int
+  moneda                String            @default("USD")
+  horaApertura          String? // ej. "06:00"
+  horaCierre            String? // ej. "22:00"
+  estado                EstadoParqueadero @default(ACTIVO)
+  creadoEn              DateTime          @default(now())
+  actualizadoEn         DateTime          @updatedAt
+
+  zonas    ZonaParqueo[]
+  espacios EspacioParqueo[]
+
+  @@index([latitud, longitud])
+  @@map("parqueaderos")
+}
+
+model ZonaParqueo {
+  id            String      @id @default(uuid())
+  parqueaderoId String
+  parqueadero   Parqueadero @relation(fields: [parqueaderoId], references: [id], onDelete: Cascade)
+  nombre        String
+  creadoEn      DateTime    @default(now())
+  actualizadoEn DateTime    @updatedAt
+
+  espacios EspacioParqueo[]
+
+  @@unique([parqueaderoId, nombre])
+  @@map("zonas_parqueo")
+}
+
+enum TipoVehiculo {
+  AUTO
+  MOTOCICLETA
+  CAMION
+}
+
+enum EstadoEspacio {
+  DISPONIBLE
+  OCUPADO
+  RESERVADO
+  MANTENIMIENTO
+}
+
+model EspacioParqueo {
+  id            String        @id @default(uuid())
+  parqueaderoId String
+  parqueadero   Parqueadero   @relation(fields: [parqueaderoId], references: [id], onDelete: Cascade)
+  zonaId        String?
+  zona          ZonaParqueo?  @relation(fields: [zonaId], references: [id], onDelete: SetNull)
+  numeroEspacio String
+  tipoVehiculo  TipoVehiculo  @default(AUTO)
+  estado        EstadoEspacio @default(DISPONIBLE)
+  creadoEn      DateTime      @default(now())
+  actualizadoEn DateTime      @updatedAt
+
+  reservas Reserva[]
+
+  @@unique([parqueaderoId, numeroEspacio])
+  @@map("espacios_parqueo")
+}
+
+// ==========================================
+// USUARIO FINAL: vehículos y reservas
+// ==========================================
+
+model Vehiculo {
+  id            String       @id @default(uuid())
+  usuarioId     String
+  usuario       Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  placa         String
+  tipoVehiculo  TipoVehiculo @default(AUTO)
+  creadoEn      DateTime     @default(now())
+  actualizadoEn DateTime     @updatedAt
+
+  reservas Reserva[]
+
+  @@unique([usuarioId, placa])
+  @@map("vehiculos")
+}
+
+enum EstadoReserva {
+  PENDIENTE
+  CONFIRMADA
+  ACTIVA
+  COMPLETADA
+  CANCELADA
+  NO_ASISTIO
+}
+
+model Reserva {
+  id               String         @id @default(uuid())
+  usuarioId        String
+  usuario          Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  espacioParqueoId String
+  espacioParqueo   EspacioParqueo @relation(fields: [espacioParqueoId], references: [id], onDelete: Cascade)
+  vehiculoId       String?
+  vehiculo         Vehiculo?      @relation(fields: [vehiculoId], references: [id], onDelete: SetNull)
+  estado           EstadoReserva  @default(PENDIENTE)
+  horaInicio       DateTime
+  horaFin          DateTime
+  montoCentavos    Int
+  moneda           String         @default("USD")
+  creadoEn         DateTime       @default(now())
+  actualizadoEn    DateTime       @updatedAt
+
+  @@index([espacioParqueoId, horaInicio, horaFin])
+  @@map("reservas")
 }

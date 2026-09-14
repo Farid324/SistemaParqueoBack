@@ -27,11 +27,14 @@
 ---
 
 ## 🦖 El Dinosaurio de Chrome & Resiliencia
-> *Incluso si te quedas sin internet como el clásico juego del Dinosaurio de Chrome (T-Rex), este backend está totalmente preparado para ejecutarse en entorno offline local gracias a su stack en **Docker**, **pnpm store** local y base de datos **PostgreSQL** contenerizada.* 🦕💨
+
+> _Incluso si te quedas sin internet como el clásico juego del Dinosaurio de Chrome (T-Rex), este backend está totalmente preparado para ejecutarse en entorno offline local gracias a su stack en **Docker**, **pnpm store** local y base de datos **PostgreSQL** contenerizada._ 🦕💨
 
 ---
 
 ## 📋 Tabla de Contenidos
+
+- [Arquitectura General del Sistema](#-arquitectura-general-del-sistema)
 - [Funcionalidades Principales](#-funcionalidades-principales)
 - [Arquitectura del Proyecto (Modular Clean Architecture)](#-arquitectura-del-proyecto-modular-clean-architecture)
 - [Requisitos Previos](#-requisitos-previos)
@@ -43,11 +46,79 @@
 
 ---
 
+## 🌐 Arquitectura General del Sistema
+
+Este backend es el **núcleo central** del Sistema de Parqueos SaaS. Todas las aplicaciones cliente se conectan exclusivamente a este servidor a través de su API REST.
+
+### Diagrama de Conexión
+
+```text
+┌──────────────────────────┐
+│  SistemaParqueoFront     │        ┌──────────────────────────┐
+│  (Next.js — Panel Web)   │───────▶│                          │       ┌─────────────────┐
+│  Puerto: 3000            │        │  SistemaParqueoBack      │──────▶│  Supabase        │
+│                          │        │  (NestJS — API REST)     │       │  PostgreSQL      │
+│  Env: NEXT_PUBLIC_API_URL│        │  Puerto: 4000            │       │  (Base de Datos) │
+└──────────────────────────┘        │                          │       └─────────────────┘
+                                    │  Endpoints disponibles:  │
+┌──────────────────────────┐        │  GET  /api/health        │
+│  SistemaParqueoApp       │───────▶│  GET  /api/usuarios      │
+│  (Expo — App Móvil)      │        │  POST /api/usuarios      │
+│  Puerto: 8081 (dev only) │        │                          │
+│                          │        │  Swagger UI:             │
+│  Env: EXPO_PUBLIC_API_URL│        │  /api/docs               │
+└──────────────────────────┘        └──────────────────────────┘
+```
+
+### Puertos en Desarrollo Local
+
+Cada aplicación utiliza su propio puerto porque todas corren en la misma computadora:
+
+| Proyecto                               | Puerto | Descripción                                     |
+| -------------------------------------- | ------ | ----------------------------------------------- |
+| **SistemaParqueoBack** (este proyecto) | `4000` | API REST — servidor central                     |
+| **SistemaParqueoFront** (Next.js)      | `3000` | Panel web de administración                     |
+| **SistemaParqueoApp** (Expo)           | `8081` | Dev server de la app móvil (automático de Expo) |
+
+> ⚠️ **Importante:** Los puertos del Frontend (`3000`) y la App Móvil (`8081`) son los puertos de sus propios dev servers. Ambos **apuntan al puerto `4000`** de este backend para consumir datos.
+
+### Estrategia de Variables de Entorno (Desarrollo → Producción)
+
+La conexión al backend se maneja mediante **una sola variable de entorno** en cada proyecto cliente. Esto permite cambiar de desarrollo local a producción **sin modificar ningún archivo de código**:
+
+| Proyecto      | Variable de Entorno   | Valor en Desarrollo       | Valor en Producción             |
+| ------------- | --------------------- | ------------------------- | ------------------------------- |
+| **Frontend**  | `NEXT_PUBLIC_API_URL` | `http://localhost:4000`   | `https://tu-backend.render.com` |
+| **App Móvil** | `EXPO_PUBLIC_API_URL` | `http://192.168.1.X:4000` | `https://tu-backend.render.com` |
+
+**¿Cómo funciona?**
+
+1. Todo el código de los clientes importa un **cliente API centralizado** (un solo archivo).
+2. Ese archivo lee la URL del `.env` una sola vez.
+3. Todas las llamadas HTTP pasan por ese cliente.
+4. Para producción: solo cambias **1 valor** en el `.env` (o en el dashboard de Vercel/EAS) y todo se actualiza automáticamente.
+
+> 🚫 **Nunca** se escribe `localhost` directamente en los componentes o pantallas. Siempre se usa la variable de entorno.
+
+### Conexión con la Base de Datos
+
+Este backend se conecta a **PostgreSQL** (Supabase) mediante **Prisma ORM**. La conexión se configura en el `.env` de este proyecto:
+
+```env
+# Conexión por pooler (para la app en ejecución)
+DATABASE_URL="postgresql://...@pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# Conexión directa (para migraciones de Prisma)
+DIRECT_URL="postgresql://...@pooler.supabase.com:5432/postgres"
+```
+
+---
+
 ## 🚀 Funcionalidades Principales
 
-- 🔐 **Autenticación y Autorización (Módulo `auth`)**: Gestión segura de credenciales, tokens JWT y control de acceso basado en roles (`ADMIN`, `OPERATOR`, `CUSTOMER`).
-- 🗺️ **Mapa de Parqueos en Tiempo Real (Módulo `parking-map`)**: Gestión interactiva de puestos de estacionamiento, estados ocupado/disponible y tipos de vehículo (`CAR`, `MOTORCYCLE`, `TRUCK`).
-- 👤 **Gestión de Usuarios (Módulo `users`)**: Registro, listado y control de usuarios dentro del sistema SaaS.
+- 🔐 **Autenticación y Autorización (Módulo `auth`)**: Registro, login, refresh tokens, verificación de email y control de acceso basado en roles (`SUPER_ADMIN`, `PROPIETARIO`, `OPERADOR`, `CLIENTE`).
+- 🗺️ **Mapa de Parqueos en Tiempo Real (Módulo `mapa-parqueo`)**: Gestión interactiva de puestos de estacionamiento, estados ocupado/disponible y tipos de vehículo (`AUTO`, `MOTOCICLETA`, `CAMION`). _(en construcción)_
+- 👤 **Gestión de Usuarios (Módulo `usuarios`)**: Registro, listado y control de usuarios dentro del sistema SaaS.
 - ✉️ **Servicio de Email con Google (Módulo `shared/email`)**: Envío de correos transaccionales con **Gmail SMTP**, **Nodemailer** y plantillas **Handlebars** (`.hbs`).
 - 🛠️ **Integración de Prisma ORM**: Modelado estricto con PostgreSQL, cliente autogenerado y migraciones.
 - 🐳 **Entorno Dockerizado**: `Dockerfile` multi-stage optimizado con `pnpm` y `docker-compose.yml` para levantar la API y PostgreSQL con 1 solo comando.
@@ -75,24 +146,24 @@ SistemaParqueoBack/
 │   │   │   ├── presentation/      # AuthController y AuthDto
 │   │   │   └── auth.module.ts
 │   │   │
-│   │   ├── parking-map/           # Módulo de Mapa de Parqueos
+│   │   ├── mapa-parqueo/           # Módulo de Mapa de Parqueos
 │   │   │   ├── domain/            # Entidades de Zonas y Slots
 │   │   │   ├── application/       # Casos de uso del mapa
 │   │   │   ├── infrastructure/    # Gateways de WebSockets y Repositorios
-│   │   │   ├── presentation/      # ParkingMapController y DTOs
-│   │   │   └── parking-map.module.ts
+│   │   │   ├── presentation/      # MapaParqueoController y DTOs
+│   │   │   └── mapa-parqueo.module.ts
 │   │   │
-│   │   ├── users/                 # Módulo de Usuarios
-│   │   │   ├── domain/            # UserEntity, IUserRepository
-│   │   │   ├── application/       # CreateUserUseCase, GetUsersUseCase
-│   │   │   ├── infrastructure/    # PrismaUserRepository, UserMapper
-│   │   │   ├── presentation/      # UserController, CreateUserDto
-│   │   │   └── users.module.ts
+│   │   ├── usuarios/               # Módulo de Usuarios
+│   │   │   ├── domain/            # UsuarioEntity, IUsuarioRepository
+│   │   │   ├── application/       # CrearUsuarioUseCase, ObtenerUsuariosUseCase
+│   │   │   ├── infrastructure/    # PrismaUsuarioRepository, UsuarioMapper
+│   │   │   ├── presentation/      # UsuarioController, CrearUsuarioDto
+│   │   │   └── usuarios.module.ts
 │   │   │
-│   │   └── health/                # Módulo de comprobación de salud del sistema
-│   │       ├── application/       # GetHealthUseCase
-│   │       ├── presentation/      # HealthController
-│   │       └── health.module.ts
+│   │   └── salud/                 # Módulo de comprobación de salud del sistema
+│   │       ├── application/       # ObtenerSaludUseCase
+│   │       ├── presentation/      # SaludController
+│   │       └── salud.module.ts
 │   │
 │   ├── shared/                    # 🤝 RECURSOS COMPARTIDOS (TRANSVERSALES)
 │   │   ├── domain/                # Interfaces compartidas (IEmailService)
@@ -128,38 +199,52 @@ Crea un archivo `.env` en la raíz del proyecto basándote en la plantilla `.env
 
 ```env
 # App Environment
-PORT=3000
+PORT=4000
 NODE_ENV=development
 
-# Prisma Database URL (PostgreSQL local o en Docker)
+# Prisma Database URL (pooler, para la app en ejecución)
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/sistemaparqueodb?schema=public"
+
+# Conexión directa (sin pooler), usada solo por Prisma Migrate
+DIRECT_URL="postgresql://postgres:postgres@localhost:5432/sistemaparqueodb?schema=public"
+
+# Auth / JWT (genera uno real con: openssl rand -base64 48)
+JWT_SECRET=cambia-este-valor-por-uno-aleatorio-de-al-menos-32-caracteres
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=30d
+
+# CORS (dominios separados por coma; vacío = abierto, solo para dev)
+CORS_ORIGIN=
 
 # Google Mail Configuration (Gmail SMTP)
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USER=tu-cuenta@gmail.com
 MAIL_PASSWORD=tu-contraseña-de-aplicacion-google
-MAIL_FROM="Sistema Parqueo SaaS" <tu-cuenta@gmail.com>
+MAIL_FROM="Sistema Parqueo SaaS <tu-cuenta@gmail.com>"
 ```
 
-> 💡 **Nota sobre Gmail**: Para obtener `MAIL_PASSWORD`, activa la *Verificación en 2 pasos* en tu cuenta de Google y genera una *Contraseña de aplicación* en la sección de seguridad de Google.
+> 💡 **Nota sobre Gmail**: Para obtener `MAIL_PASSWORD`, activa la _Verificación en 2 pasos_ en tu cuenta de Google y genera una _Contraseña de aplicación_ en la sección de seguridad de Google.
 
 ---
 
 ## 📦 Instalación y Configuración
 
 1. **Clonar el repositorio:**
+
    ```bash
    git clone https://github.com/tu-usuario/SistemaParqueoBack.git
    cd SistemaParqueoBack
    ```
 
 2. **Instalar dependencias con `pnpm`:**
+
    ```bash
    pnpm install
    ```
 
 3. **Generar el cliente de Prisma:**
+
    ```bash
    pnpm run prisma:generate
    ```
@@ -192,7 +277,7 @@ pnpm run docker:down
 
 Una vez iniciado el servidor, accede a la documentación interactiva de la API OpenAPI / Swagger en tu navegador:
 
-🔗 **[http://localhost:3000/api/docs](http://localhost:3000/api/docs)**
+🔗 **[http://localhost:4000/api/docs](http://localhost:4000/api/docs)**
 
 ---
 
