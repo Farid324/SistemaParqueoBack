@@ -61,9 +61,11 @@ export class TokenService {
     userLookup: (userId: string) => Promise<TokenSubject | null>,
   ): Promise<AuthTokens> {
     const tokenHash = hashToken(rawRefreshToken);
-    const stored = await this.refreshTokenRepository.findByTokenHash(tokenHash);
+    // Revoca de forma atómica: si dos requests llegan con el mismo token a la vez,
+    // solo una puede "ganar" la condición revocadoEn === null y continuar.
+    const stored = await this.refreshTokenRepository.revokeIfActive(tokenHash);
 
-    if (!stored || stored.revokedAt || stored.expiresAt.getTime() < Date.now()) {
+    if (!stored || stored.expiresAt.getTime() < Date.now()) {
       throw new UnauthorizedException('El refresh token es inválido o ha expirado.');
     }
 
@@ -72,7 +74,6 @@ export class TokenService {
       throw new UnauthorizedException('El usuario ya no existe.');
     }
 
-    await this.refreshTokenRepository.revoke(stored.id);
     return this.issueTokens(user);
   }
 

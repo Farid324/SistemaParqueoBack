@@ -21,7 +21,7 @@ export class UsuarioController {
   ) {}
 
   @Post()
-  @Roles(Rol.SUPER_ADMIN, Rol.PROPIETARIO)
+  @Roles(Rol.PROPIETARIO)
   @ApiOperation({ summary: 'Crear un usuario (operador o cliente) dentro de la organización' })
   @ApiResponse({ status: 201, description: 'Usuario creado exitosamente' })
   @ApiResponse({ status: 409, description: 'El correo electrónico ya existe' })

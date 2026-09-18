@@ -28,7 +28,13 @@ async function bootstrap() {
   );
 
   // CORS restringido por variable de entorno (coma-separado); abierto solo en desarrollo
+  const nodeEnv = config.get<string>('NODE_ENV', 'development');
   const corsOrigin = config.get<string>('CORS_ORIGIN');
+
+  if (nodeEnv === 'production' && !corsOrigin) {
+    throw new Error('CORS_ORIGIN es obligatorio en producción.');
+  }
+
   app.enableCors({
     origin: corsOrigin ? corsOrigin.split(',').map((origin) => origin.trim()) : true,
     credentials: Boolean(corsOrigin),

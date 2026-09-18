@@ -33,6 +33,30 @@ export class PrismaRefreshTokenRepository implements IRefreshTokenRepository {
     };
   }
 
+  async revokeIfActive(tokenHash: string): Promise<StoredRefreshToken | null> {
+    const existing = await this.prisma.tokenRenovacion.findUnique({ where: { tokenHash } });
+    if (!existing) {
+      return null;
+    }
+
+    const { count } = await this.prisma.tokenRenovacion.updateMany({
+      where: { id: existing.id, revocadoEn: null },
+      data: { revocadoEn: new Date() },
+    });
+
+    if (count === 0) {
+      return null;
+    }
+
+    return {
+      id: existing.id,
+      tokenHash: existing.tokenHash,
+      userId: existing.usuarioId,
+      expiresAt: existing.expiraEn,
+      revokedAt: existing.revocadoEn,
+    };
+  }
+
   async revoke(id: string): Promise<void> {
     await this.prisma.tokenRenovacion.update({
       where: { id },

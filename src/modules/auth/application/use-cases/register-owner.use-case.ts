@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../../shared/infrastructure/persistence/prisma/prisma.service';
 import { IHashingService } from '../../../../shared/domain/services/hashing.service.interface';
@@ -6,7 +6,9 @@ import { IEmailService } from '../../../../shared/domain/services/email.service.
 import { RegisterOwnerDto } from '../../presentation/dtos/register-owner.dto';
 import { TokenService } from '../services/token.service';
 import { AuthTokens } from '../../domain/value-objects/auth-tokens.value-object';
-import { Rol, EstadoSuscripcion } from '@prisma/client';
+import { Rol, EstadoSuscripcion, Prisma } from '@prisma/client';
+
+const UNIQUE_CONSTRAINT_ERROR_CODE = 'P2002';
 
 const TRIAL_DAYS = 14;
 const DEFAULT_MAX_PARKING_LOTS = 1;
@@ -25,6 +27,8 @@ function slugify(name: string): string {
 
 @Injectable()
 export class RegisterOwnerUseCase {
+  private readonly logger = new Logger(RegisterOwnerUseCase.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(IHashingService)
@@ -69,8 +73,16 @@ export class RegisterOwnerUseCase {
         organizacion = await tx.organizacion.create({
           data: { nombre: dto.organizationName, slug },
         });
-      } catch {
-        throw new ConflictException('Ese nombre de organización ya está en uso, intenta de nuevo.');
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === UNIQUE_CONSTRAINT_ERROR_CODE
+        ) {
+          throw new ConflictException(
+            'Ese nombre de organización ya está en uso, intenta de nuevo.',
+          );
+        }
+        throw error;
       }
 
       await tx.suscripcion.create({
@@ -98,7 +110,7 @@ export class RegisterOwnerUseCase {
     const verificationToken = this.tokenService.generateEmailVerificationToken(usuario.id);
     const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
 
-    await this.emailService.sendEmail({
+    const emailSent = await this.emailService.sendEmail({
       to: usuario.email,
       subject: '¡Bienvenido a Sistema Parqueo SaaS!',
       template: 'welcome',
@@ -109,6 +121,12 @@ export class RegisterOwnerUseCase {
         verificationUrl: `${frontendUrl}/verificar-email?token=${verificationToken}`,
       },
     });
+
+    if (!emailSent) {
+      this.logger.warn(
+        `No se pudo enviar el correo de verificación a ${usuario.email}. El usuario quedó creado pero sin email de bienvenida/verificación.`,
+      );
+    }
 
     return this.tokenService.issueTokens({
       id: usuario.id,

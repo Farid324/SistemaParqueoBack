@@ -7,9 +7,14 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 const SALT_ROUNDS = 10;
+const SEED_PASSWORD = process.env.SEED_PASSWORD ?? 'Password123!';
 
 async function main() {
-  const hashedPassword = await bcrypt.hash('Password123!', SALT_ROUNDS);
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('El seed de datos de prueba no debe ejecutarse con NODE_ENV=production.');
+  }
+
+  const hashedPassword = await bcrypt.hash(SEED_PASSWORD, SALT_ROUNDS);
 
   const planGratuito = await prisma.plan.upsert({
     where: { nombre: 'Free Trial' },
@@ -125,7 +130,9 @@ async function main() {
     },
   });
 
-  console.log('✅ Seed completado. Credenciales de prueba (password: Password123!):');
+  console.log(
+    '✅ Seed completado. Usuarios de prueba creados (contraseña definida en SEED_PASSWORD):',
+  );
   console.log('   - super-admin@parqueo.com (SUPER_ADMIN)');
   console.log('   - owner@parqueo-demo.com (PROPIETARIO)');
   console.log('   - cliente@ejemplo.com (CLIENTE)');
